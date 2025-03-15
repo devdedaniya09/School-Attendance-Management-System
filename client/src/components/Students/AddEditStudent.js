@@ -80,16 +80,22 @@ function AddEditStudent() {
     e.preventDefault();
     setLoading({ submit: true, reset: false });
 
-    const { day, month, year } = student;
-    // Combine day, month, and year into a dateOfBirth string
+    const { day, month, year, class: classValue } = student;
     const dateOfBirth = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+
+    // Ensure class is converted to integer
+    const requestData = {
+      ...student,
+      class: parseInt(classValue, 10),
+      dateOfBirth,
+    };
 
     try {
       if (id) {
         // Update student
         await axios.put(
           `${process.env.REACT_APP_API_URL}/api/students/${id}`,
-          { ...student, dateOfBirth },
+          requestData,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -101,7 +107,7 @@ function AddEditStudent() {
         // Add new student
         await axios.post(
           `${process.env.REACT_APP_API_URL}/api/students/addStudent`,
-          { ...student, dateOfBirth },
+          requestData,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -121,6 +127,7 @@ function AddEditStudent() {
       setLoading({ submit: false, reset: false });
     }
   };
+
 
   const handleReset = () => {
     setStudent({

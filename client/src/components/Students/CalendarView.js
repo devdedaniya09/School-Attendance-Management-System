@@ -45,7 +45,6 @@ const CalendarView = () => {
 
                 setAttendance(formattedAttendance);
             } catch (error) {
-                console.error("Error fetching attendance", error);
                 if (error.response && error.response.status === 401) {
                     Swal.fire("Session Expired", "Please log in again", "error");
                     localStorage.removeItem("token");

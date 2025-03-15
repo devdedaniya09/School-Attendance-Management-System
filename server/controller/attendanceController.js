@@ -87,16 +87,20 @@ exports.markAttendance = async (req, res) => {
 
 // Mark absentees [NEW APPROACH]
 exports.markAbsentees = async (req, res) => {
+  const { absentClass } = req.body;
+  if (!absentClass) {
+    return res.status(400).json({ message: "Please provide valid class to mark absentees." });
+  }
   try {
     // Get today's date in IST without time (start of the day)
     const istDate = new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000); // Current IST time
     const today = new Date(istDate.toISOString().split("T")[0]); // Keep date only
 
     // Check if there are any students in the system
-    const studentCount = await Student.countDocuments();
+    const studentCount = await Student.countDocuments({ class: { $in: absentClass } });;
     if (studentCount === 0) {
       return res.status(200).json({
-        message: "No attendance data found as there are no students in the system.",
+        message: "No students found in the selected class.",
       });
     }
 
@@ -112,28 +116,36 @@ exports.markAbsentees = async (req, res) => {
       });
     }
 
-    // Check if absentees have already been marked for today
-    if (attendanceDoc.absentList.length > 0) {
+    // Check if absentees have already been marked for the selected classes
+    const alreadyMarked = attendanceDoc.absentList.some((record) =>
+      absentClass.includes(record.class)
+    );
+
+    if (alreadyMarked) {
       return res.status(409).json({
-        message: "Absentees have already been marked for today. Duplicate marking is not allowed.",
+        message: "Absentees for the selected class have already been marked today.",
       });
     }
 
     // Get barcodes of students already marked present
     const markedBarcodes = attendanceDoc.presentList.map((record) => record.barcode);
 
-    // Find students who are not marked present
-    const absentees = await Student.find({ barcode: { $nin: markedBarcodes } }).lean();
+    // Find students in the given classes who are not marked present
+    const absentees = await Student.find({
+      class: { $in: absentClass },
+      barcode: { $nin: markedBarcodes },
+    }).lean();
 
     if (absentees.length === 0) {
       return res.status(200).json({
-        message: "Attendance already marked for today.",
+        message: `All students in class ${absentClass} are already marked present.`,
       });
     }
 
     // Prepare absent records
     const absentRecords = absentees.map((student) => ({
       barcode: student.barcode,
+      class: student.class,
       timestamp: istDate,
     }));
 
@@ -144,14 +156,13 @@ exports.markAbsentees = async (req, res) => {
     await attendanceDoc.save();
 
     res.status(200).json({
-      message: "Absentees marked successfully.",
+      message: `Absentees for class ${absentClass} marked successfully.`,
       absentCount: absentRecords.length,
       absentees: absentRecords,
     });
   } catch (error) {
     console.error("Error marking absentees:", error);
-    const statusCode = error instanceof mongoose.Error ? 400 : 500;
-    res.status(statusCode).json({
+    res.status(500).json({
       message: "Failed to mark absentees.",
       error: error.message,
     });

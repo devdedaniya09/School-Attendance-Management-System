@@ -4,28 +4,35 @@ const axios = require("axios");
 const https = require("https");
 
 const sendAbsentMessage = async (req, res) => {
-  try {
-    // Get current date in IST
-    const today = new Date(); // Get the current date and time
-    const indiaToday = new Date(today.getTime());
-    
-    // Format to YYYY-MM-DDT00:00:00.000+00:00
-    const formattedDate = indiaToday.toISOString().split("T")[0] + "T00:00:00.000+00:00";
-    
-    // Find today's attendance record
-    const attendanceRecord = await Attendance.findOne({ date: formattedDate });
+  const { absentClass } = req.body;
 
-    if (!attendanceRecord) {
+  if (!absentClass) {
+    return res.status(400).json({ message: "Please provide a class." });
+  }
+
+  try {
+    // Get today's date in IST
+    const istDate = new Date(new Date().getTime() + 5.5 * 60 * 60 * 1000);
+    const today = new Date(istDate.toISOString().split("T")[0]); // Format YYYY-MM-DD
+
+    // Find today's attendance record
+    const attendanceRecord = await Attendance.findOne({ date: today });
+
+    if (!attendanceRecord || attendanceRecord.absentList.length === 0) {
       return res.status(404).json({
-        message: "No attendance record found for today.",
+        message: `No absentees found for class ${absentClass} today.`,
       });
     }
 
-    // Extract absentList for today
-    const { absentList } = attendanceRecord;
-    if (!absentList || absentList.length === 0) {
+    // Filter absent students by class
+    const absentees = await Student.find({
+      barcode: { $in: attendanceRecord.absentList.map(a => a.barcode) },
+      class: absentClass, // Filter only selected class
+    });
+
+    if (absentees.length === 0) {
       return res.status(200).json({
-        message: "No students in the absent list for today.",
+        message: `No absentees found for class ${absentClass} today.`,
       });
     }
 
@@ -35,25 +42,19 @@ const sendAbsentMessage = async (req, res) => {
     const failedMessages = [];
 
     // Get today's date in DD/MM/YYYY format
-    const todayDate = indiaToday.toLocaleString("en-GB", { timeZone: "Asia/Kolkata" }).split(",")[0];
-    const [day, month, year] = todayDate.split("/");
-    const formattedTodayDate = `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+    const formattedTodayDate = istDate.toLocaleDateString("en-GB", {
+      timeZone: "Asia/Kolkata",
+    });
 
     // Iterate through absent students and send messages
-    for (const { barcode } of absentList) {
+    for (const student of absentees) {
       try {
-        // Fetch student by barcode
-        const student = await Student.findOne({ barcode });
-        if (!student) {
-          throw new Error(`No student found with barcode: ${barcode}`);
-        }
-
         const phoneNumber = student.contactNumber; // Primary contact number
         if (!phoneNumber) {
-          throw new Error(`No contact number found for student with barcode: ${barcode}`);
+          throw new Error(`No contact number found for student: ${student.name}`);
         }
 
-        const response = await axios.post(
+        await axios.post(
           process.env.WHATSAPP_API_URL,
           {
             to: phoneNumber,
@@ -69,8 +70,8 @@ const sendAbsentMessage = async (req, res) => {
                 {
                   type: "body",
                   parameters: [
-                    { type: "text", text: student.name }, // Student name as a parameter
-                    { type: "text", text: formattedTodayDate }, // Date as a parameter in DD/MM/YYYY format
+                    { type: "text", text: student.name }, // Student name
+                    { type: "text", text: formattedTodayDate }, // Formatted date
                   ],
                 },
               ],
@@ -84,9 +85,8 @@ const sendAbsentMessage = async (req, res) => {
             },
           }
         );
-
       } catch (error) {
-        failedMessages.push({ barcode, error: error.response?.data || error.message });
+        failedMessages.push({ student: student.name, error: error.response?.data || error.message });
       }
     }
 
@@ -98,7 +98,7 @@ const sendAbsentMessage = async (req, res) => {
     }
 
     res.status(200).json({
-      message: "WhatsApp messages sent successfully to all absent students.",
+      message: `WhatsApp messages sent successfully to absent students of class ${absentClass}.`,
     });
   } catch (error) {
     res.status(500).json({

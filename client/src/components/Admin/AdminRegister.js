@@ -43,19 +43,19 @@ function AdminRegister() {
       });
 
       alert('Admin registered successfully');
-      navigate('/admin/login'); // Redirect to login page after successful registration
+      navigate('/'); // Redirect to login page after successful registration
     } catch (error) {
       alert('Error registering admin: ' + (error.response?.data?.message || error.message));
     }
   };
 
   return (
-    <div className="container mt-5">
+    <div className="container">
       <div className="row justify-content-center">
         <div className="col-md-6">
-          <div className="card shadow-sm">
+          <div className="card shadow-sm" style={{ marginTop: 100}}>
             <div className="card-body">
-              <h2 className="text-center mb-4">Admin Registration</h2>
+              <h2 className="text-center">Admin Registration</h2>
               <form onSubmit={handleSubmit}>
                 <div className="mb-3">
                   <label htmlFor="username" className="form-label">

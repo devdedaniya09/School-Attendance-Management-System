@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import ProtectedRoute from './ProtectedRoute';
 import Navbar from "./components/Navbar";
-// import Home from "./components/Home";
 import LoadingBar from 'react-top-loading-bar';
 import { BrowserRouter as Router, Routes, Route, Outlet } from "react-router-dom";
 import AdminRegister from './components/Admin/AdminRegister';
@@ -59,7 +58,7 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<AdminLogin setIsLoggedIn={setIsLoggedIn} />} />
-        <Route path="/admin/register" element={<AdminRegister />} />
+        <Route path="/admin/Kss-kSS/2025-reg/owner-wibix" element={<AdminRegister />} />
 
         {/* Protected Routes */}
         <Route element={<SidebarLayout />}>

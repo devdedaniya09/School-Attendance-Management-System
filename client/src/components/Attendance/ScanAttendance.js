@@ -6,7 +6,8 @@ import axios from 'axios';
 function ScanAttendance() {
   const [barcode, setBarcode] = useState('');
   const [loading, setLoading] = useState(false); // State to manage loader visibility
-
+  const [selectedAbsClass, setSelectedAbsClass] = useState(""); // For selection of mark absentees
+  const [selectedMsgClass, setSelectedMsgClass] = useState(""); // For selection of send messages
   const inputRef = useRef(null); // Ref for the input field
 
   const token = localStorage.getItem('token');
@@ -36,16 +37,16 @@ function ScanAttendance() {
     try {
       const currentTimeUTC = new Date().toISOString(); // Store in UTC format
       const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/attendance/scan`,
-      {
-        barcode,
-        timestamp: currentTimeUTC, // Store the UTC timestamp
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
+        {
+          barcode,
+          timestamp: currentTimeUTC, // Store the UTC timestamp
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+          }
         }
-      }
-    );
+      );
 
       if (response.data.message === "Attendance already marked for today") {
         openNotification('warning', 'Warning', response.data.message);
@@ -69,26 +70,26 @@ function ScanAttendance() {
   const handleMarkAbsentees = async () => {
     const result = await Swal.fire({
       title: 'Are you sure?',
-      text: 'This will mark all remaining students as absent for today, and this action cannot be undone.',
+      text: `This will mark all remaining students in class ${selectedAbsClass} as absent for today, and this action cannot be undone.`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Yes, mark as absent',
       cancelButtonText: 'Cancel',
     });
-
+    
     if (result.isConfirmed) {
       try {
         setLoading(true); // Show loader
         const response = await axios.post(
           `${process.env.REACT_APP_API_URL}/api/attendance/absentees`,
-          {},
+          { absentClass: selectedAbsClass },
           {
             headers: {
               Authorization: `Bearer ${token}`,
             }
           }
         );
-        openNotification('success', 'Done', response.data.message || 'All students marked as absent');
+        openNotification('success', 'Done', response.data.message || `All students in class ${selectedAbsClass} marked as absent.`);
       } catch (error) {
         const errorMessage = error.response?.data?.message || 'Error marking all students as absent';
         openNotification('error', 'Error', errorMessage);
@@ -101,7 +102,7 @@ function ScanAttendance() {
   const handleSendMessages = async () => {
     const result = await Swal.fire({
       title: 'Are you sure?',
-      text: 'This action will send WhatsApp messages to the parents of absent students. Do you wish to proceed?',
+      text: `This action will send WhatsApp messages to the parents of absent students in class ${selectedMsgClass}. Do you wish to proceed?`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Yes, send messages',
@@ -113,7 +114,7 @@ function ScanAttendance() {
         setLoading(true); // Show loader
         const response = await axios.post(
           `${process.env.REACT_APP_API_URL}/api/send-absent-messages`,
-          {},
+          { absentClass: selectedMsgClass },
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -124,7 +125,7 @@ function ScanAttendance() {
         if (response.status === 200) {
           Swal.fire({
             title: 'Note!',
-            text: response.data.message,
+            text: response.data.message || `Messages sent to parents of absent students in class ${selectedMsgClass}.`,
             icon: 'success',
           });
         }
@@ -171,15 +172,28 @@ function ScanAttendance() {
           </p>
           <hr />
 
-          <div className="container rounded bg-white p-3">
-            <h5 className="fst-italic text-muted">This will mark all remaining students as ABSENT.</h5>
+          <div className="col container rounded bg-white p-3">
+            <h5 className="fst-italic text-muted">
+              This will mark all remaining students as ABSENT.
+            </h5>
+
+            <select
+              className="form-select mb-2"
+              value={selectedAbsClass}
+              onChange={(e) => setSelectedAbsClass(e.target.value)}
+            >
+              <option value="">Select Class</option>
+              <option value="9">Class 9</option>
+              <option value="10">Class 10</option>
+            </select>
+
             <button
               className="btn btn-danger mt-2"
               onClick={handleMarkAbsentees}
-              disabled={loading} // Disable button while loading
+              disabled={loading || !selectedAbsClass} // Disable if loading or no class selected
             >
               {loading ? (
-                <i className="fa fa-spinner fa-spin me-2"></i> // Spinner icon
+                <i className="fa fa-spinner fa-spin me-2"></i>
               ) : (
                 <i className="fa fa-ban me-2"></i>
               )}
@@ -192,19 +206,31 @@ function ScanAttendance() {
             <h5 className="fst-italic text-muted">
               Notify parents of absent students via WhatsApp by clicking the button below.
             </h5>
+
+            <select
+              className="form-select mb-2"
+              value={selectedMsgClass}
+              onChange={(e) => setSelectedMsgClass(e.target.value)}
+            >
+              <option value="">Select Class</option>
+              <option value="9">Class 9</option>
+              <option value="10">Class 10</option>
+            </select>
+
             <button
               className="btn btn-danger mt-2"
               onClick={handleSendMessages}
-              disabled={loading} // Disable button while loading
+              disabled={loading || !selectedMsgClass} // Disable if loading or no class selected
             >
               {loading ? (
-                <i className="fa fa-spinner fa-spin me-2"></i> // Spinner icon
+                <i className="fa fa-spinner fa-spin me-2"></i>
               ) : (
                 <i className="bi bi-whatsapp me-2"></i>
               )}
               Send Absent Messages
             </button>
           </div>
+          
         </div>
       </div>
     </div>

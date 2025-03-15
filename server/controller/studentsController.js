@@ -25,25 +25,59 @@ exports.addStudent = async (req, res) => {
 // Edit student
 exports.editStudent = async (req, res) => {
   try {
-    const { name, contactNumber, alternateContactNumber, city, barcode, studentClass, dateOfBirth, gender, grNumber, note } = req.body;
+    const {
+      name,
+      contactNumber,
+      alternateContactNumber,
+      city,
+      barcode,
+      class: studentClass,  // Renamed 'class' to 'studentClass'
+      dateOfBirth,
+      gender,
+      grNumber,
+      note
+    } = req.body;
 
+    // Validate gender field
     if (gender !== "all" && !["Male", "Female", "Other"].includes(gender)) {
       return res.status(400).json({ message: "Invalid gender specified" });
     }
 
+    // Ensure studentClass is an integer
+    const classInt = parseInt(studentClass, 10);
+    if (isNaN(classInt)) {
+      return res.status(400).json({ message: "Invalid class value. Must be a number." });
+    }
+
     const student = await Student.findByIdAndUpdate(
       req.params.id,
-      { name, contactNumber, alternateContactNumber, city, barcode, class: studentClass, dateOfBirth, gender, grNumber, note },
+      {
+        name,
+        contactNumber,
+        alternateContactNumber,
+        city,
+        barcode,
+        class: classInt,  // Save as an integer
+        dateOfBirth,
+        gender,
+        grNumber,
+        note
+      },
       { new: true }
     );
 
-    if (!student) return res.status(404).json({ message: "Student not found" });
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
     res.status(200).json({ message: "Student updated successfully", student });
+
   } catch (error) {
-    console.error('Error updating student:', error);
-    res.status(400).json({ message: "Failed to update student" });
+    console.error("Error updating student:", error);
+    res.status(500).json({ message: "Failed to update student" });
   }
 };
+
 
 // Delete a student [CORRECT SECURE]
 exports.deleteStudent = async (req, res) => {
