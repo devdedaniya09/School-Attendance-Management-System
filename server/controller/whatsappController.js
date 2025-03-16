@@ -42,9 +42,7 @@ const sendAbsentMessage = async (req, res) => {
     const failedMessages = [];
 
     // Get today's date in DD/MM/YYYY format
-    const formattedTodayDate = istDate.toLocaleDateString("en-GB", {
-      timeZone: "Asia/Kolkata",
-    });
+    const formattedTodayDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
 
     // Iterate through absent students and send messages
     for (const student of absentees) {

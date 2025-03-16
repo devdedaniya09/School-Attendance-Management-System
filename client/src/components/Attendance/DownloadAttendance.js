@@ -41,7 +41,6 @@ const DownloadAttendance = () => {
         }
       );
 
-      console.log(response.data.attendanceData);
       const { attendanceData } = response.data;
 
       if (!attendanceData || attendanceData.length === 0) {

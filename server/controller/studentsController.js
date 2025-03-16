@@ -31,7 +31,7 @@ exports.editStudent = async (req, res) => {
       alternateContactNumber,
       city,
       barcode,
-      class: studentClass,  // Renamed 'class' to 'studentClass'
+      class: studentClass,
       dateOfBirth,
       gender,
       grNumber,
@@ -78,51 +78,37 @@ exports.editStudent = async (req, res) => {
   }
 };
 
-
 // Delete a student [CORRECT SECURE]
 exports.deleteStudent = async (req, res) => {
-  const session = await Student.startSession(); // Start a session for transaction-like behavior
-  session.startTransaction();
-
   try {
     // Find the student by ID to retrieve the barcode
-    const student = await Student.findById(req.params.id).session(session);
+    const student = await Student.findById(req.params.id);
     if (!student) {
-      await session.abortTransaction(); // Roll back changes
       return res.status(404).json({ message: "Student not found" });
     }
 
     const barcodeToDelete = student.barcode;
 
     // Delete the student from the Student table
-    const deletedStudent = await Student.findByIdAndDelete(req.params.id).session(session);
+    const deletedStudent = await Student.findByIdAndDelete(req.params.id);
     if (!deletedStudent) {
-      await session.abortTransaction(); // Roll back changes
       return res.status(500).json({ message: "Failed to delete the student from the database" });
     }
 
     // Remove the student's barcode from all attendance records
-    const attendanceUpdateResult = await Attendance.updateMany(
-      {}, // Match all attendance records
+    await Attendance.updateMany(
+      {},
       {
         $pull: {
-          presentList: { barcode: barcodeToDelete }, // Match objects in presentList with the barcode
-          absentList: { barcode: barcodeToDelete },  // Match objects in absentList with the barcode
+          presentList: { barcode: barcodeToDelete },
+          absentList: { barcode: barcodeToDelete },
         },
       }
-    ).session(session);
-
-    // Even if no attendance records were modified, proceed with the deletion
-    // Commit the transaction if both operations succeed
-    await session.commitTransaction();
-    session.endSession();
+    );
 
     res.status(200).json({ message: "Student and related attendance entries deleted successfully" });
   } catch (error) {
-    // Handle any errors during the process
     console.error(error);
-    await session.abortTransaction(); // Roll back changes
-    session.endSession();
     res.status(500).json({ message: "An error occurred during the deletion process" });
   }
 };
